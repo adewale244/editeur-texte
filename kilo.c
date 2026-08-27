@@ -66,7 +66,7 @@ int getWindowSize(int *rows, int *cols) {
   }
 }
 
-v#define KILO_VERSION "0.0.1"
+#define KILO_VERSION "0.0.1"
 
 void editorDrawRows(struct abuf *ab) {
   int y;
