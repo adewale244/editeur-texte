@@ -21,10 +21,17 @@ enum editorKey {
   PAGE_DOWN
 };
 
+typedef struct erow {
+  int size;
+  char *chars;
+} erow;
+
 struct editorConfig {
   int cx, cy;
   int screenrows;
   int screencols;
+  int numrows;
+  erow row;
   struct termios orig_termios;
 };
 
@@ -144,22 +151,28 @@ void abFree(struct abuf *ab) {
 void editorDrawRows(struct abuf *ab) {
   int y;
   for (y = 0; y < E.screenrows; y++) {
-    if (y == E.screenrows / 3) {
-      char welcome[80];
-      int welcomelen = snprintf(welcome, sizeof(welcome),
-        "Kilo editor -- version %s", KILO_VERSION);
-      if (welcomelen > E.screencols) welcomelen = E.screencols;
+    if (y >= E.numrows) {
+      if (E.numrows == 0 && y == E.screenrows / 3) {
+        char welcome[80];
+        int welcomelen = snprintf(welcome, sizeof(welcome),
+          "Kilo editor -- version %s", KILO_VERSION);
+        if (welcomelen > E.screencols) welcomelen = E.screencols;
 
-      int padding = (E.screencols - welcomelen) / 2;
-      if (padding) {
+        int padding = (E.screencols - welcomelen) / 2;
+        if (padding) {
+          abAppend(ab, "~", 1);
+          padding--;
+        }
+        while (padding--) abAppend(ab, " ", 1);
+
+        abAppend(ab, welcome, welcomelen);
+      } else {
         abAppend(ab, "~", 1);
-        padding--;
       }
-      while (padding--) abAppend(ab, " ", 1);
-
-      abAppend(ab, welcome, welcomelen);
     } else {
-      abAppend(ab, "~", 1);
+      int len = E.row.size;
+      if (len > E.screencols) len = E.screencols;
+      abAppend(ab, E.row.chars, len);
     }
 
     abAppend(ab, "\x1b[K", 3);
@@ -244,9 +257,18 @@ void editorProcessKeypress() {
   }
 }
 
+void editorAppendRow(char *s, size_t len) {
+  E.row.size = len;
+  E.row.chars = malloc(len + 1);
+  memcpy(E.row.chars, s, len);
+  E.row.chars[len] = '\0';
+  E.numrows = 1;
+}
+
 void initEditor() {
   E.cx = 0;
   E.cy = 0;
+  E.numrows = 0;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
 }
@@ -254,6 +276,7 @@ void initEditor() {
 int main() {
   enableRawMode();
   initEditor();
+  editorAppendRow("Hello, world!", 13);
 
   while (1) {
     editorRefreshScreen();
