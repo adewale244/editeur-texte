@@ -31,7 +31,7 @@ struct editorConfig {
   int screenrows;
   int screencols;
   int numrows;
-  erow row;
+  erow *row;
   struct termios orig_termios;
 };
 
@@ -169,12 +169,11 @@ void editorDrawRows(struct abuf *ab) {
       } else {
         abAppend(ab, "~", 1);
       }
-    } else {
-      int len = E.row.size;
+        } else {
+      int len = E.row[y].size;
       if (len > E.screencols) len = E.screencols;
-      abAppend(ab, E.row.chars, len);
+      abAppend(ab, E.row[y].chars, len);
     }
-
     abAppend(ab, "\x1b[K", 3);
     if (y < E.screenrows - 1) {
       abAppend(ab, "\r\n", 2);
@@ -258,17 +257,21 @@ void editorProcessKeypress() {
 }
 
 void editorAppendRow(char *s, size_t len) {
-  E.row.size = len;
-  E.row.chars = malloc(len + 1);
-  memcpy(E.row.chars, s, len);
-  E.row.chars[len] = '\0';
-  E.numrows = 1;
+  E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
+
+  int at = E.numrows;
+  E.row[at].size = len;
+  E.row[at].chars = malloc(len + 1);
+  memcpy(E.row[at].chars, s, len);
+  E.row[at].chars[len] = '\0';
+  E.numrows++;
 }
 
 void initEditor() {
   E.cx = 0;
   E.cy = 0;
   E.numrows = 0;
+  E.row = NULL;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
 }
